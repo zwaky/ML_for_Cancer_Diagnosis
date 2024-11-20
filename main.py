@@ -1,14 +1,24 @@
+# TODO
+# Clean up data
+# remove uneeded features (cross validation)
+# Assess results of tuned parameters
+
+
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.model_selection import GridSearchCV
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
+from time import process_time
+
 warnings.filterwarnings('ignore')
 
 def plot_relationships(df):
@@ -60,11 +70,11 @@ def main():
     # Return diagnosis to the data
     df['diagnosis'] = target
 
-    #Normalize the data
+    # Normalize the data
     scale = StandardScaler()
-    df_sc = scale.fit_transform(df)
-    df_sc = pd.DataFrame(df_sc, columns=df.columns)
-    df_sc['diagnosis'] = df['diagnosis']
+    df_norm = scale.fit_transform(df)
+    df_norm = pd.DataFrame(df_norm, columns=df.columns)
+    df_norm['diagnosis'] = df['diagnosis']
 
 
     # TODO clean up data
@@ -77,20 +87,36 @@ def main():
     # print(pd.crosstab(target,target,normalize='all')*100)
 
 
-    y = df_sc['diagnosis']
-    x = df_sc.drop('diagnosis', axis = 1)
-    x_train, x_test, y_train, y_test = train_test_split(x,y,test_size=0.3, random_state=1000)
+    y = df_norm['diagnosis']
+    x = df_norm.drop('diagnosis', axis = 1)
+    x_true, x_test, y_true, y_test = train_test_split(x,y,test_size=0.3, random_state=42)
     SVM_classification = SVC()
-    SVM_classification.fit(x_train, y_train)
+    SVM_classification.fit(x_true, y_true)
 
-    y_hat = SVM_classification.predict(x_test)
-    predictions = pd.DataFrame({'y_test': y_test, 'y_hat': y_hat})
-    predictions.tail(20)
-
-
-    print(classification_report(y_test, y_hat))
+    y_prediction = SVM_classification.predict(x_test)
+    predictions = pd.DataFrame({'y_true': y_test, 'y_prediction': y_prediction})
 
 
+    print(classification_report(y_test, y_prediction))
+
+
+    # Hyperparameters optimization
+    # C is cost of misclassification. Higher C leard to lower margins and overfitting
+    # Gamma controls how tight/detailed the islands surrounding the dataset are
+
+    parameters = {'C': [10, 100, 1000], 'gamma': ['scale', 0.01, 0.001], 'kernel': ['rbf']}
+
+    # 10 fold cross-vailidation
+    param_optimization = GridSearchCV(estimator=SVC(), param_grid=parameters, refit=True, verbose=1, cv=10)
+
+
+    param_optimization.fit(x_true,y_true)
+
+    print('Optimal hyperparameters:')
+    print(param_optimization.best_params_)
+
+
+    # print(process_time())
 
 if __name__ == "__main__":
     main()
